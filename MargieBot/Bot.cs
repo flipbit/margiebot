@@ -85,6 +85,16 @@ namespace MargieBot
             }
         }
 
+        /// <summary>
+        /// Determines if MargieBot can response to messages with no user set
+        /// </summary>
+        private bool _CanResponseToUserlessMessages = false;
+        public bool CanResponseToUserlessMessages
+        {
+            get { return _CanResponseToUserlessMessages; }
+            set { _CanResponseToUserlessMessages = value; }
+        }
+
         public Dictionary<string, object> ResponseContext { get; private set; }
         public string SlackKey { get; private set; }
         public string TeamID { get; private set; }
@@ -243,8 +253,8 @@ namespace MargieBot
                     }
                 }
 
-                // margie can never respond to herself and requires that the message have text and be from an actual person
-                if (message.User != null && message.User.ID != UserID && message.Text != null) {
+                // determine if margie can respond
+                if (CanResponseToMessage(message)) {
                     foreach (IResponder responder in Responders) {
                         if (responder.CanRespond(context)) {
                             await Say(responder.GetResponse(context), context);
@@ -255,6 +265,18 @@ namespace MargieBot
             }
 
             RaiseMessageReceived(json);
+        }
+
+        private bool CanResponseToMessage(SlackMessage message)
+        {
+            if (message == null) return false;
+            if (message.Text == null) return false;
+
+            // only respond to an actual person (if set)
+            if (message.User == null) return _CanResponseToUserlessMessages;
+
+            // respond if not herself
+            return message.User.ID != UserID;
         }
 
         public async Task Say(BotMessage message)
